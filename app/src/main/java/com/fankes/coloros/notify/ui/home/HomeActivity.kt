@@ -256,7 +256,9 @@ class HomeActivity : ComponentActivity() {
             result.onSuccess {
                 onShowMessage(getString(R.string.message_restart_requested))
             }.onFailure {
-                val userMessage = (it as? SystemUiRestarter.RestartFailure)?.userMessage
+                val failure = it as? SystemUiRestarter.RestartFailure
+                val userMessage = failure?.messageResId?.let { resId -> getString(resId) }
+                    ?: failure?.userMessage
                     ?: getString(R.string.message_restart_failed_generic)
                 onShowMessage(
                     getString(R.string.message_restart_failed, userMessage)

@@ -1,6 +1,8 @@
 package com.fankes.coloros.notify.update
 
+import android.content.Context
 import com.fankes.coloros.notify.BuildConfig
+import com.fankes.coloros.notify.R
 import com.fankes.coloros.notify.core.ModuleInfo
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -21,7 +23,7 @@ object UpdateChecker {
         .callTimeout(18, TimeUnit.SECONDS)
         .build()
 
-    fun check(): Result = try {
+    fun check(context: Context? = null): Result = try {
         val request = Request.Builder()
             .url(ModuleInfo.RELEASES_API)
             .header("Accept", "application/vnd.github+json")
@@ -34,24 +36,28 @@ object UpdateChecker {
             when (response.code) {
                 404 -> Result(
                     hasUpdate = false,
-                    message = "尚未发布 Release，可前往 GitHub 查看仓库。",
+                    message = context?.getString(R.string.update_no_release)
+                        ?: "No releases published yet. You can visit the GitHub repository.",
                     releaseUrl = ModuleInfo.PROJECT_URL,
                 )
-                in 200..299 -> parseRelease(body)
+                in 200..299 -> parseRelease(body, context)
                 else -> Result(
                     hasUpdate = false,
-                    message = "检查失败（HTTP ${response.code}）",
+                    message = context?.getString(R.string.update_check_failed_http, response.code)
+                        ?: "Check failed (HTTP ${response.code})",
                 )
             }
         }
     } catch (exception: Exception) {
+        val detail = exception.localizedMessage ?: exception.javaClass.simpleName
         Result(
             hasUpdate = false,
-            message = "检查更新失败：${exception.localizedMessage ?: exception.javaClass.simpleName}",
+            message = context?.getString(R.string.update_check_failed, detail)
+                ?: "Update check failed: $detail",
         )
     }
 
-    private fun parseRelease(body: String): Result {
+    private fun parseRelease(body: String, context: Context? = null): Result {
         val json = JSONObject(body)
         val tag = json.optString("tag_name").orEmpty()
         val htmlUrl = json.optString("html_url").ifBlank { ModuleInfo.RELEASES_PAGE }
@@ -59,14 +65,24 @@ object UpdateChecker {
         val latest = normalizeVersion(tag)
         val current = normalizeVersion(BuildConfig.VERSION_NAME)
         if (latest.isEmpty()) {
-            return Result(hasUpdate = false, message = "无法解析最新版本号", releaseUrl = htmlUrl)
+            return Result(
+                hasUpdate = false,
+                message = context?.getString(R.string.update_cannot_parse_version)
+                    ?: "Unable to parse latest version",
+                releaseUrl = htmlUrl,
+            )
         }
         return if (compareVersion(latest, current) > 0) {
             Result(
                 hasUpdate = true,
                 message = buildString {
-                    append("发现新版本：$tag\n")
-                    append("当前版本：${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                    val header = context?.getString(
+                        R.string.update_found_new_version,
+                        tag,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.VERSION_CODE,
+                    ) ?: "New version found: $tag\nCurrent version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+                    append(header)
                     if (notes.isNotEmpty()) {
                         append("\n\n")
                         append(notes)
@@ -77,7 +93,8 @@ object UpdateChecker {
         } else {
             Result(
                 hasUpdate = false,
-                message = "已是最新版本（${BuildConfig.VERSION_NAME}）\n最新 Release：$tag",
+                message = context?.getString(R.string.update_is_latest, BuildConfig.VERSION_NAME, tag)
+                    ?: "Already up to date (${BuildConfig.VERSION_NAME})\nLatest Release: $tag",
                 releaseUrl = htmlUrl,
             )
         }

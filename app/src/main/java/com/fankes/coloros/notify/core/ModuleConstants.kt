@@ -7,9 +7,9 @@ object SystemPackages {
 
 object ModuleInfo {
     const val LOG_TAG = "ColorOSNotifyIcon"
-    const val PROJECT_URL = "https://github.com/Mangi-11/Glyph"
+    const val PROJECT_URL = "https://github.com/emanuelebonaventura/Glyph"
     const val RELEASES_PAGE = "$PROJECT_URL/releases"
-    const val RELEASES_API = "https://api.github.com/repos/Mangi-11/Glyph/releases/latest"
+    const val RELEASES_API = "https://api.github.com/repos/emanuelebonaventura/Glyph/releases/latest"
     const val ANIP_REPO = "BetterAndroid/android-notification-icon-project"
     const val ANIP_BRANCH = "main"
     const val ANIP_RAW_BASE = "https://raw.githubusercontent.com/$ANIP_REPO/$ANIP_BRANCH"

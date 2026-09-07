@@ -1,5 +1,6 @@
 package com.fankes.coloros.notify.framework
 
+import com.fankes.coloros.notify.R
 import com.fankes.coloros.notify.diagnostics.AppDiagnostics
 import com.fankes.coloros.notify.diagnostics.DiagnosticEvent
 import com.fankes.coloros.notify.diagnostics.DiagnosticLevel
@@ -12,8 +13,11 @@ import java.util.concurrent.TimeoutException
 
 object SystemUiRestarter {
 
-    class RestartFailure internal constructor(cause: Exception, message: String) :
-        Exception("Unable to restart SystemUI", cause) {
+    class RestartFailure internal constructor(
+        cause: Exception,
+        message: String,
+        val messageResId: Int? = null,
+    ) : Exception("Unable to restart SystemUI", cause) {
         val userMessage: String = message
     }
 
@@ -57,7 +61,11 @@ object SystemUiRestarter {
 
     private fun failureResult(cause: Exception): Result<Unit> {
         if (cause is InterruptedException) Thread.currentThread().interrupt()
-        val failure = RestartFailure(cause, userMessageFor(cause))
+        val failure = RestartFailure(
+            cause = cause,
+            message = userMessageFor(cause),
+            messageResId = userMessageResIdFor(cause),
+        )
         AppDiagnostics.logger.report(
             level = DiagnosticLevel.Error,
             event = DiagnosticEvent.SystemUiRestartFailed,
@@ -105,17 +113,31 @@ object SystemUiRestarter {
         } ?: "su"
     }
 
+    private fun userMessageResIdFor(cause: Exception): Int {
+        val detail = cause.message.orEmpty()
+        return when {
+            cause is TimeoutException -> R.string.restart_error_timeout
+            detail.contains("Cannot run program", ignoreCase = true) ||
+                detail.contains("error=2", ignoreCase = true) ->
+                R.string.restart_error_no_su
+            detail.contains("Permission denied", ignoreCase = true) ||
+                detail.contains("denied", ignoreCase = true) ->
+                R.string.restart_error_denied
+            else -> R.string.message_restart_failed_generic
+        }
+    }
+
     private fun userMessageFor(cause: Exception): String {
         val detail = cause.message.orEmpty()
         return when {
-            cause is TimeoutException -> "SystemUI 重启命令超时，请检查 Root 弹窗是否已授权"
+            cause is TimeoutException -> "SystemUI restart timed out, please check Root authorization prompt"
             detail.contains("Cannot run program", ignoreCase = true) ||
                 detail.contains("error=2", ignoreCase = true) ->
-                "未找到 su 命令，请确认 Root 环境已正确加载"
+                "su command not found, please confirm Root environment is properly loaded"
             detail.contains("Permission denied", ignoreCase = true) ||
                 detail.contains("denied", ignoreCase = true) ->
-                "Root 权限被拒绝，请在 Root 管理器中允许 Glyph"
-            else -> "无法执行 SystemUI 重启命令"
+                "Root permission denied, please grant access to Glyph in your Root manager"
+            else -> "Unable to execute SystemUI restart command"
         }
     }
 

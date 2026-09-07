@@ -108,7 +108,7 @@ fun AboutDetailsScreen(
         if (checkingUpdate) return
         checkingUpdate = true
         scope.launch {
-            val result = withContext(Dispatchers.IO) { UpdateChecker.check() }
+            val result = withContext(Dispatchers.IO) { UpdateChecker.check(context) }
             checkingUpdate = false
             updateHasNew = result.hasUpdate
             updateMessage = result.message
